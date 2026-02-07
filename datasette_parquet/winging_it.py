@@ -19,10 +19,24 @@ DOUBLE_QUOTES_AROUND_LITERALS_PATTERN = r'(?<![A-Za-z0-9_])"(?:[^"]*(?:"[^"]*)*[
 def find_matching_double_quote_usage(ex: BinderException) -> typing.List[str]:
     """
     Accepts a BinderException from DuckDB, and returns a list of
-    matching strings in double quotes
+    matching strings in double quotes.
+
+    Only matches the specific case where a double-quoted string was
+    treated as an identifier and not found — i.e., the error message
+    contains "not found in FROM clause". Other BinderExceptions (like
+    GROUP BY violations) may contain double-quoted identifiers in
+    their error text, but those are not the double-quote-for-literal
+    issue we're looking for.
     """
+    msg = ex.args[0]
+
+    # Only attempt to match if this is actually the "referenced column
+    # not found" error that indicates a double-quoted literal.
+    if ' not found in FROM clause' not in msg:
+        return []
+
     # should return 'Binder Error: Referenced column "LITERAL_IN_DOUBLE_QUOTES" '
-    referenced_column_message = ex.args[0].split(' not found in FROM clause')[0]
+    referenced_column_message = msg.split(' not found in FROM clause')[0]
     pattern = DOUBLE_QUOTES_AROUND_LITERALS_PATTERN
 
     # find the offending values wrapped in double quotes
