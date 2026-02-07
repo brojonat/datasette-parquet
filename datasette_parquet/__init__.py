@@ -16,6 +16,12 @@ def startup(datasette):
 
     monkey_patch()
 
+    # DuckDB is stricter than SQLite about GROUP BY semantics, which causes
+    # Datasette's auto-generated facet suggestion queries to fail. Disable
+    # suggest_facets unless the user has explicitly set it.
+    if datasette.setting("suggest_facets") is True:
+        datasette._settings["suggest_facets"] = False
+
     for db_name, options in config.items():
         if not 'directory' in options and not 'file' in options:
             raise Exception('datasette-parquet: expected directory or file key for db {}'.format(db))
