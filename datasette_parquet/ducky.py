@@ -63,7 +63,7 @@ class DuckDatabase(Database):
             observer.schedule(event_handler, directory, recursive=True)
             observer.start()
         elif file:
-            raw_conn = duckdb.connect(file, read_only=True)
+            raw_conn = duckdb.connect(file)
             conn = ProxyConnection(raw_conn)
         else:
             raise Exception('must specify directory or file')
