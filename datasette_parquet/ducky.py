@@ -95,7 +95,7 @@ class DuckDatabase(Database):
             except duckdb.DataError as e:
                 raise sqlite3.DatabaseError(str(e))
 
-        return await asyncio.get_event_loop().run_in_executor(
+        return await asyncio.get_running_loop().run_in_executor(
             self.ds.executor, in_thread
         )
 
@@ -116,6 +116,6 @@ class DuckDatabase(Database):
                 raise sqlite3.DatabaseError(str(e))
 
         # We lie, we'll always block.
-        return await asyncio.get_event_loop().run_in_executor(
+        return await asyncio.get_running_loop().run_in_executor(
             self.ds.executor, in_thread
         )
