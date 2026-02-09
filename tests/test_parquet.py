@@ -1,3 +1,5 @@
+import inspect
+
 from datasette.app import Datasette
 from .create_db import create_dbs
 import pytest
@@ -5,10 +7,22 @@ import duckdb
 from datasette_parquet.winging_it import ProxyConnection
 from datasette_parquet import exceptions
 
+# Detect whether the installed Datasette supports the config= constructor
+# parameter (1.0+). In pre-1.0, plugin config is passed via metadata=.
+_DATASETTE_V1 = 'config' in inspect.signature(Datasette.__init__).parameters
+
+
+def _query_url(db, sql_params, fmt=""):
+    """Build a SQL query URL compatible with pre- and post-1.0 Datasette."""
+    if _DATASETTE_V1:
+        return f"/{db}/-/query{fmt}?{sql_params}"
+    return f"/{db}{fmt}?{sql_params}"
+
+
 @pytest.fixture(scope="session")
 def datasette():
     create_dbs('./fixtures')
-    metadata = {
+    plugin_config = {
         'plugins': {
             'datasette-parquet': {
                 'trove': {
@@ -22,11 +36,18 @@ def datasette():
         }
     }
 
-    return Datasette(
-        [],
-        memory=True,
-        metadata=metadata,
-    )
+    if _DATASETTE_V1:
+        return Datasette(
+            [],
+            memory=True,
+            config=plugin_config,
+        )
+    else:
+        return Datasette(
+            [],
+            memory=True,
+            metadata=plugin_config,
+        )
 
 @pytest.mark.asyncio
 async def test_plugin_is_installed(datasette):
@@ -53,12 +74,14 @@ async def test_json_works(datasette):
 
 @pytest.mark.asyncio
 async def test_extraneous_parameters(datasette):
-    response = await datasette.client.get("/trove?sql=select+%2A+from+fixtures&_hide_sql=1")
+    url = _query_url("trove", "sql=select+%2A+from+fixtures&_hide_sql=1")
+    response = await datasette.client.get(url)
     assert response.status_code == 200
 
 @pytest.mark.asyncio
 async def test_sql_json(datasette):
-    response = await datasette.client.get("/trove.json?sql=select+%2A+from+fixtures&_hide_sql=1")
+    url = _query_url("trove", "sql=select+%2A+from+fixtures&_hide_sql=1", fmt=".json")
+    response = await datasette.client.get(url)
     assert response.status_code == 200
 
 
@@ -74,7 +97,6 @@ def test_fetchone():
     assert fetched['col'] == 1
 
 
-@pytest.mark.asyncio
 def test_catch_double_quote_usage_for_literal(datasette):
 
     raw_conn = duckdb.connect()
