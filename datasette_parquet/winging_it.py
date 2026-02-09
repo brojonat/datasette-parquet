@@ -57,6 +57,9 @@ class Row:
         else:
             return self.tpl[self.columns[key]]
 
+    def keys(self):
+        return self.columns.keys()
+
 def fixup_params(sql, parameters):
     # Sometimes we skip queries that DuckDB can't handle, eg DATE(...) facet queries.
     # If the old query had parameters, sending them with the new query will

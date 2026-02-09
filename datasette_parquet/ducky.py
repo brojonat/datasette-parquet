@@ -1,4 +1,5 @@
 import asyncio
+from collections import defaultdict
 import duckdb
 import sqlite3
 from .debounce import debounce
@@ -78,6 +79,20 @@ class DuckDatabase(Database):
     def size(self):
         # TODO: implement this? Not sure if it's useful.
         return 0
+
+    async def hidden_table_names(self):
+        # The base class queries SQLite-specific pragmas (e.g. pragma_table_list)
+        # that don't exist in DuckDB. DuckDB/Parquet files have no SQLite shadow
+        # tables, FTS indexes, or spatialite internals, so just return empty.
+        return []
+
+    async def get_all_foreign_keys(self):
+        # DuckDB/Parquet files don't have foreign keys. The base class
+        # implementation queries sqlite_master with SQLite-specific syntax
+        # that is incompatible with DuckDB. Return a defaultdict so any
+        # table lookup yields the expected {"incoming": [], "outgoing": []}
+        # structure.
+        return defaultdict(lambda: {"incoming": [], "outgoing": []})
 
     async def execute_fn(self, fn):
         if self.ds.executor is None:

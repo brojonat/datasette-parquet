@@ -2,7 +2,7 @@ import re
 import sqlglot
 import sqlite3
 table_xinfo_re = re.compile('^PRAGMA table_xinfo[(](.+)[)]')
-table_info_square_re = re.compile('^PRAGMA table_info[(]\[(.+)][)]')
+table_info_square_re = re.compile(r'^PRAGMA table_info[(]\[(.+)][)]')
 
 NO_OP_SQL = 'SELECT 0 WHERE 1 = 0'
 
@@ -38,8 +38,11 @@ def rewrite(sql):
     if sql == 'select 1 from sqlite_master where tbl_name = "geometry_columns"':
         sql = NO_OP_SQL
 
-    if sql == 'select name from sqlite_master where type="table"':
-        sql = "select name from sqlite_master where type='table'"
+    # SQLite allows double-quoted string literals (e.g. type="table"), but
+    # DuckDB treats double quotes as identifier quotes. Replace the common
+    # sqlite_master patterns with single-quoted equivalents.
+    sql = sql.replace('type="table"', "type='table'")
+    sql = sql.replace('type="view"', "type='view'")
 
     # Thwart https://github.com/simonw/datasette/blob/0b4a28691468b5c758df74fa1d72a823813c96bf/datasette/utils/__init__.py#L1120-L1127
     if sql.startswith('explain '):
